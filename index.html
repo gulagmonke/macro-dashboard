@@ -3,1245 +3,747 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>gulagmonke's US Macro Dashboard</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<title>TQQQ / SQQQ Signal Model</title>
 <style>
-  :root {
-    --bg: #0a0c0f;
-    --surface: #111318;
-    --surface2: #181c23;
-    --border: #1e2530;
-    --border2: #252d3a;
-    --text: #e2e8f0;
-    --muted: #6b7a8f;
-    --accent: #00d4aa;
-    --accent2: #0095ff;
-    --red: #ff4757;
-    --green: #00d4aa;
-    --yellow: #ffd32a;
-    --orange: #ff9f43;
-  }
-
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'IBM Plex Sans', sans-serif;
-    font-size: 13px;
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
-
-  /* Scanline overlay */
-  body::before {
-    content: '';
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 2px,
-      rgba(0,0,0,0.03) 2px,
-      rgba(0,0,0,0.03) 4px
-    );
-    pointer-events: none;
-    z-index: 9999;
-  }
-
-  header {
-    border-bottom: 1px solid var(--border);
-    padding: 14px 24px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: var(--surface);
-    position: sticky;
-    top: 0;
-    z-index: 100;
-  }
-
-  .logo {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--accent);
-    letter-spacing: 0.08em;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .logo-dot {
-    width: 8px; height: 8px;
-    background: var(--accent);
-    border-radius: 50%;
-    animation: pulse 2s ease-in-out infinite;
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.4; transform: scale(0.85); }
-  }
-
-  .header-right {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-  }
-
-  .timestamp {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
-    color: var(--muted);
-  }
-
-  .status-badge {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 10px;
-    padding: 3px 10px;
-    border-radius: 2px;
-    background: rgba(0,212,170,0.1);
-    color: var(--accent);
-    border: 1px solid rgba(0,212,170,0.25);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-  }
-
-  .main {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr 340px;
-    grid-template-rows: auto auto auto;
-    gap: 1px;
-    background: var(--border);
-    min-height: calc(100vh - 49px);
-  }
-
-  /* ── TICKER BAR ─────────────────────────────────────── */
-  .ticker-bar {
-    grid-column: 1 / -1;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    overflow: hidden;
-    height: 36px;
-    display: flex;
-    align-items: center;
-  }
-
-  .ticker-label {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 10px;
-    color: var(--muted);
-    padding: 0 16px;
-    border-right: 1px solid var(--border);
-    white-space: nowrap;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    letter-spacing: 0.1em;
-  }
-
-  .ticker-scroll {
-    overflow: hidden;
-    flex: 1;
-    height: 100%;
-    display: flex;
-    align-items: center;
-  }
-
-  .ticker-inner {
-    display: flex;
-    gap: 0;
-    animation: ticker 60s linear infinite;
-    white-space: nowrap;
-  }
-
-  @keyframes ticker {
-    0% { transform: translateX(0); }
-    100% { transform: translateX(-50%); }
-  }
-
-  .ticker-item {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 0 24px;
-    border-right: 1px solid var(--border);
-    height: 36px;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
-  }
-
-  .ticker-name { color: var(--muted); }
-  .ticker-val { color: var(--text); font-weight: 500; }
-  .ticker-chg.up { color: var(--green); }
-  .ticker-chg.down { color: var(--red); }
-
-  /* ── PANELS ─────────────────────────────────────────── */
-  .panel {
-    background: var(--surface);
-    padding: 20px;
-    position: relative;
-  }
-
-  .panel-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 16px;
-  }
-
-  .panel-title {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 10px;
-    color: var(--muted);
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-  }
-
-  .panel-badge {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 9px;
-    color: var(--accent2);
-    letter-spacing: 0.08em;
-  }
-
-  /* ── KEY METRICS GRID ───────────────────────────────── */
-  .metrics-grid {
-    grid-column: 1 / 4;
-    background: var(--surface);
-    padding: 20px;
-  }
-
-  .metrics-inner {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
-  }
-
-  .metric-card {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 2px;
-    padding: 14px 16px;
-    position: relative;
-    overflow: hidden;
-    transition: border-color 0.2s;
-  }
-
-  .metric-card::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 2px;
-    background: var(--accent-color, var(--accent));
-    opacity: 0.6;
-  }
-
-  .metric-card:hover {
-    border-color: var(--border2);
-  }
-
-  .metric-label {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 9px;
-    color: var(--muted);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    margin-bottom: 8px;
-  }
-
-  .metric-value {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 26px;
-    font-weight: 600;
-    color: var(--text);
-    line-height: 1;
-    margin-bottom: 6px;
-  }
-
-  .metric-value.loading {
-    color: var(--border2);
-    font-size: 20px;
-  }
-
-  .metric-sub {
-    font-size: 11px;
-    color: var(--muted);
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .metric-delta {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
-    font-weight: 500;
-  }
-
-  .metric-delta.up { color: var(--green); }
-  .metric-delta.down { color: var(--red); }
-  .metric-delta.neutral { color: var(--muted); }
-
-  .metric-bar {
-    margin-top: 10px;
-    height: 3px;
-    background: var(--border);
-    border-radius: 2px;
-    overflow: hidden;
-  }
-
-  .metric-bar-fill {
-    height: 100%;
-    border-radius: 2px;
-    background: var(--accent-color, var(--accent));
-    transition: width 1s ease;
-  }
-
-  /* ── RECESSION INDICATOR ────────────────────────────── */
-  .recession-panel {
-    background: var(--surface);
-    padding: 20px;
-  }
-
-  .gauge-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-    margin-top: 8px;
-  }
-
-  .gauge-svg {
-    width: 160px;
-    height: 90px;
-  }
-
-  .gauge-label {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
-    color: var(--muted);
-    text-align: center;
-  }
-
-  /* ── YIELD CURVE ────────────────────────────────────── */
-  .yield-panel {
-    background: var(--surface);
-    padding: 20px;
-  }
-
-  /* ── MARKET STRESS ──────────────────────────────────── */
-  .stress-panel {
-    background: var(--surface);
-    padding: 20px;
-  }
-
-  /* ── NEWS FEED ──────────────────────────────────────── */
-  .news-panel {
-    grid-column: 4;
-    grid-row: 2 / 5;
-    background: var(--surface);
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    max-height: calc(100vh - 85px);
-    position: sticky;
-    top: 49px;
-  }
-
-  .news-header {
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-shrink: 0;
-  }
-
-  .news-list {
-    overflow-y: auto;
-    flex: 1;
-    scrollbar-width: thin;
-    scrollbar-color: var(--border) transparent;
-  }
-
-  .news-item {
-    padding: 14px 20px;
-    border-bottom: 1px solid var(--border);
-    cursor: pointer;
-    transition: background 0.15s;
-    animation: slideIn 0.4s ease;
-  }
-
-  @keyframes slideIn {
-    from { opacity: 0; transform: translateX(10px); }
-    to { opacity: 1; transform: translateX(0); }
-  }
-
-  .news-item:hover { background: var(--surface2); }
-
-  .news-source {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 9px;
-    color: var(--accent2);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    margin-bottom: 5px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .news-time {
-    color: var(--muted);
-    font-size: 9px;
-  }
-
-  .news-title {
-    font-size: 12px;
-    line-height: 1.45;
-    color: var(--text);
-    margin-bottom: 5px;
-  }
-
-  .news-sentiment {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 9px;
-    font-family: 'IBM Plex Mono', monospace;
-    padding: 2px 6px;
-    border-radius: 2px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-  }
-
-  .news-sentiment.bullish {
-    background: rgba(0,212,170,0.1);
-    color: var(--green);
-  }
-
-  .news-sentiment.bearish {
-    background: rgba(255,71,87,0.1);
-    color: var(--red);
-  }
-
-  .news-sentiment.neutral {
-    background: rgba(107,122,143,0.15);
-    color: var(--muted);
-  }
-
-  /* ── SPARKLINE CHART ──────────────────────────────────── */
-  .sparkline-svg { display: block; }
-
-  /* ── INDICATOR TABLE ──────────────────────────────────── */
-  .indicator-table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-
-  .indicator-table tr {
-    border-bottom: 1px solid var(--border);
-  }
-
-  .indicator-table tr:last-child {
-    border-bottom: none;
-  }
-
-  .indicator-table td {
-    padding: 7px 0;
-    font-size: 12px;
-  }
-
-  .indicator-table .ind-name {
-    color: var(--muted);
-    font-size: 11px;
-  }
-
-  .indicator-table .ind-val {
-    font-family: 'IBM Plex Mono', monospace;
-    text-align: right;
-    font-size: 12px;
-    color: var(--text);
-  }
-
-  .indicator-table .ind-signal {
-    text-align: right;
-    width: 60px;
-  }
-
-  .signal-pill {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 9px;
-    padding: 2px 7px;
-    border-radius: 2px;
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    display: inline-block;
-  }
-
-  .signal-pill.hot { background: rgba(255,71,87,0.15); color: var(--red); }
-  .signal-pill.warm { background: rgba(255,159,67,0.15); color: var(--orange); }
-  .signal-pill.ok { background: rgba(0,212,170,0.12); color: var(--green); }
-  .signal-pill.cold { background: rgba(0,149,255,0.15); color: var(--accent2); }
-
-  /* ── CANVAS CHARTS ──────────────────────────────────────── */
-  canvas {
-    display: block;
-  }
-
-  /* ── FED FUNDS PROBABILITY ───────────────────────────────── */
-  .prob-bars {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-top: 4px;
-  }
-
-  .prob-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .prob-label {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 10px;
-    color: var(--muted);
-    width: 60px;
-    flex-shrink: 0;
-  }
-
-  .prob-track {
-    flex: 1;
-    height: 6px;
-    background: var(--border);
-    border-radius: 3px;
-    overflow: hidden;
-  }
-
-  .prob-fill {
-    height: 100%;
-    border-radius: 3px;
-    transition: width 1.5s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .prob-pct {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 10px;
-    color: var(--text);
-    width: 35px;
-    text-align: right;
-    flex-shrink: 0;
-  }
-
-  /* ── LOADING STATE ──────────────────────────────────── */
-  .skeleton {
-    background: linear-gradient(90deg, var(--border) 25%, var(--border2) 50%, var(--border) 75%);
-    background-size: 200% 100%;
-    animation: shimmer 1.5s infinite;
-    border-radius: 2px;
-    display: inline-block;
-  }
-
-  @keyframes shimmer {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
-  }
-
-  /* ── BOTTOM STRIP ──────────────────────────────────── */
-  .bottom-strip {
-    grid-column: 1 / 4;
-    background: var(--surface);
-    padding: 20px;
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 20px;
-  }
-
-  .strip-section-title {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 9px;
-    color: var(--muted);
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    margin-bottom: 12px;
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 8px;
-  }
-
-  .event-item {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 10px;
-    align-items: flex-start;
-  }
-
-  .event-date {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 10px;
-    color: var(--accent);
-    flex-shrink: 0;
-    width: 52px;
-  }
-
-  .event-name {
-    font-size: 11px;
-    color: var(--text);
-    line-height: 1.4;
-  }
-
-  .event-forecast {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 10px;
-    color: var(--muted);
-    margin-top: 1px;
-  }
-
-  /* Responsive tweaks */
-  @media (max-width: 1200px) {
-    .main {
-      grid-template-columns: 1fr 1fr 340px;
-    }
-    .metrics-grid { grid-column: 1 / 3; }
-    .metrics-inner { grid-template-columns: repeat(3, 1fr); }
-  }
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Syne:wght@400;600;700;800&display=swap');
+
+:root {
+  --bg: #080810;
+  --surface: #0e0e1a;
+  --surface2: #13131f;
+  --border: #1a1a2e;
+  --border2: #252540;
+  --text: #ddddf0;
+  --muted: #55556a;
+  --muted2: #7777a0;
+  --bull: #00e5a0;
+  --bear: #ff3366;
+  --neutral: #7777cc;
+  --accent: #4455ff;
+  --bull-glow: rgba(0,229,160,0.12);
+  --bear-glow: rgba(255,51,102,0.12);
+  --neutral-glow: rgba(119,119,204,0.1);
+  --bull-dim: rgba(0,229,160,0.08);
+  --bear-dim: rgba(255,51,102,0.08);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  pointer-events: none; z-index: 0; opacity: 0.5;
+}
+.app { position: relative; z-index: 1; }
+
+/* TOPBAR */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 28px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(8,8,16,0.92);
+  backdrop-filter: blur(10px);
+  position: sticky; top: 0; z-index: 100;
+}
+.logo { display: flex; align-items: baseline; gap: 12px; }
+.logo-title { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 800; letter-spacing: -0.3px; color: #fff; }
+.logo-sub { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted2); }
+.topbar-right { display: flex; align-items: center; gap: 14px; }
+.refresh-btn {
+  display: flex; align-items: center; gap: 7px;
+  background: var(--surface2); border: 1px solid var(--border2);
+  border-radius: 6px; color: var(--text);
+  font-family: 'DM Mono', monospace; font-size: 11px;
+  padding: 7px 14px; cursor: pointer; transition: all 0.2s; letter-spacing: 0.04em;
+}
+.refresh-btn:hover { border-color: var(--accent); color: #fff; }
+.refresh-btn.loading { opacity: 0.5; pointer-events: none; }
+.spin { display: inline-block; }
+.refresh-btn.loading .spin { animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.last-upd { font-size: 10px; color: var(--muted); letter-spacing: 0.04em; }
+.fetch-pills { display: flex; gap: 7px; flex-wrap: wrap; }
+.pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 9px; border-radius: 20px; font-size: 10px;
+  letter-spacing: 0.03em; border: 1px solid transparent; transition: all 0.3s;
+}
+.pill.ok { background: var(--bull-dim); border-color: rgba(0,229,160,0.2); color: var(--bull); }
+.pill.err { background: var(--bear-dim); border-color: rgba(255,51,102,0.2); color: var(--bear); }
+.pill.loading { background: var(--neutral-glow); border-color: rgba(119,119,204,0.2); color: var(--neutral); }
+.pill.manual { background: rgba(255,170,50,0.07); border-color: rgba(255,170,50,0.18); color: #ffaa33; }
+.pdot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.pill.loading .pdot { animation: blink 1s ease-in-out infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.25} }
+
+/* MAIN */
+.main { padding: 24px 28px; display: flex; flex-direction: column; gap: 22px; }
+
+/* SIGNAL STRIP */
+.sig-strip { display: flex; gap: 2px; height: 3px; }
+.ss { flex: 1; border-radius: 2px; background: var(--border2); transition: background 0.4s; }
+
+/* HERO */
+.hero { display: grid; grid-template-columns: 260px 1fr; gap: 18px; }
+.comp-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 26px 22px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  position: relative; overflow: hidden; transition: border-color 0.5s;
+}
+.comp-card::after {
+  content: ''; position: absolute; inset: 0;
+  background: var(--cg, transparent); transition: background 0.5s; pointer-events: none;
+}
+.comp-label { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted2); margin-bottom: 2px; }
+.comp-score {
+  font-family: 'Syne', sans-serif; font-size: 76px; font-weight: 800;
+  line-height: 1; letter-spacing: -5px; transition: color 0.4s; color: var(--neutral);
+}
+.comp-sig {
+  font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 700;
+  letter-spacing: 0.18em; text-transform: uppercase; margin-top: 4px;
+  transition: color 0.4s; color: var(--neutral);
+}
+.pos-badge {
+  margin-top: 12px; padding: 5px 14px; border-radius: 20px;
+  font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase; transition: all 0.4s;
+}
+.pb-bull { background: var(--bull-dim); color: var(--bull); border: 1px solid rgba(0,229,160,0.22); }
+.pb-bear { background: var(--bear-dim); color: var(--bear); border: 1px solid rgba(255,51,102,0.22); }
+.pb-neu { background: var(--neutral-glow); color: var(--neutral); border: 1px solid rgba(119,119,204,0.18); }
+.gauge-wrap { width: 100%; margin-top: 16px; }
+.gauge-track { width: 100%; height: 5px; background: var(--border2); border-radius: 3px; overflow: hidden; position: relative; }
+.gauge-fill { height: 100%; border-radius: 3px; position: absolute; left: 0; transition: width 0.6s cubic-bezier(0.4,0,0.2,1), background 0.4s; }
+.gauge-ticks { display: flex; justify-content: space-between; margin-top: 5px; font-size: 9px; color: var(--muted); letter-spacing: 0.03em; }
+
+/* CAT SUMMARIES */
+.cat-sums { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 14px; }
+.cat-sum {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 16px 18px;
+  display: flex; flex-direction: column; gap: 7px;
+  position: relative; overflow: hidden; transition: border-color 0.3s;
+}
+.cat-sum::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px; background: var(--cc); border-radius: 0 2px 2px 0;
+}
+.cs-head { display: flex; align-items: center; justify-content: space-between; }
+.cs-name { font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.cs-score { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800; letter-spacing: -1px; transition: color 0.3s; }
+.cs-bar { height: 3px; background: var(--border2); border-radius: 2px; overflow: hidden; }
+.cs-fill { height: 100%; border-radius: 2px; transition: width 0.5s, background 0.4s; }
+.cs-count { font-size: 9px; color: var(--muted); letter-spacing: 0.04em; }
+
+/* SECTION */
+.sec-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.sec-title { font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted2); white-space: nowrap; }
+.sec-line { flex: 1; height: 1px; background: var(--border); }
+.sec-note { font-size: 9px; color: var(--muted); letter-spacing: 0.05em; white-space: nowrap; }
+
+/* CATEGORIES GRID */
+.cats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.cat-block { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.cat-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 16px; border-bottom: 1px solid var(--border);
+  background: rgba(255,255,255,0.012);
+}
+.cat-hdr-name { font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; }
+.cat-wt {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 16px; border-bottom: 1px solid var(--border);
+  font-size: 10px; color: var(--muted);
+}
+.cat-wt input[type=range] { flex: 1; accent-color: var(--accent); cursor: pointer; }
+.wt-val { color: var(--text); min-width: 26px; text-align: right; }
+.ind-row {
+  display: grid; grid-template-columns: 1fr 88px 40px 26px;
+  align-items: center; gap: 8px; padding: 9px 16px;
+  border-bottom: 1px solid rgba(26,26,46,0.55); transition: background 0.15s;
+}
+.ind-row:last-child { border-bottom: none; }
+.ind-row:hover { background: rgba(255,255,255,0.018); }
+.ind-name { font-size: 11px; color: var(--text); }
+.ind-hint { font-size: 9px; color: var(--muted); margin-top: 1px; }
+.inp-wrap input, .inp-wrap select {
+  width: 100%; background: var(--bg); border: 1px solid var(--border2);
+  border-radius: 5px; color: var(--text);
+  font-family: 'DM Mono', monospace; font-size: 11px;
+  padding: 5px 8px; outline: none; transition: border-color 0.2s, background 0.3s, color 0.3s;
+}
+.inp-wrap input:focus, .inp-wrap select:focus { border-color: var(--accent); }
+.inp-wrap input.auto { border-color: rgba(68,85,255,0.35); background: rgba(68,85,255,0.05); color: #aabeff; }
+.mbar { height: 4px; background: var(--border2); border-radius: 2px; overflow: hidden; }
+.mbar-fill { height: 100%; border-radius: 2px; transition: width 0.5s, background 0.4s; }
+.sdot {
+  width: 26px; height: 26px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; flex-shrink: 0; transition: all 0.3s;
+}
+.sd-bull { background: var(--bull-dim); color: var(--bull); }
+.sd-bear { background: var(--bear-dim); color: var(--bear); }
+.sd-neu { background: var(--neutral-glow); color: var(--muted2); }
+
+/* BOTTOM */
+.bot { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+.panel h3 {
+  font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted2);
+  margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between;
+}
+.save-btn {
+  font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.06em;
+  background: var(--accent); color: #fff; border: none;
+  border-radius: 4px; padding: 4px 12px; cursor: pointer; transition: opacity 0.2s; text-transform: uppercase;
+}
+.save-btn:hover { opacity: 0.78; }
+textarea {
+  width: 100%; background: var(--bg); border: 1px solid var(--border2);
+  border-radius: 6px; color: var(--text); font-family: 'DM Mono', monospace;
+  font-size: 11px; padding: 10px; resize: vertical; min-height: 90px; outline: none; line-height: 1.6;
+}
+textarea:focus { border-color: var(--accent); }
+.hist-row {
+  display: grid; grid-template-columns: 76px 50px 1fr 68px;
+  gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border);
+  font-size: 11px; align-items: center;
+}
+.hist-row:last-child { border-bottom: none; }
+.h-date { color: var(--muted); font-size: 10px; }
+.h-score { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 15px; }
+.h-note { color: var(--muted2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; }
+.h-sig { font-size: 9px; text-align: right; letter-spacing: 0.06em; text-transform: uppercase; }
+.empty { color: var(--muted); font-size: 11px; }
+
+@media (max-width: 960px) {
+  .hero { grid-template-columns: 1fr; }
+  .cats-grid { grid-template-columns: 1fr; }
+  .bot { grid-template-columns: 1fr; }
+}
 </style>
 </head>
 <body>
+<div class="app">
 
-<header>
+<div class="topbar">
   <div class="logo">
-    <div class="logo-dot"></div>
-    gulagmonke's US Macro Dashboard
+    <span class="logo-title">TQQQ / SQQQ</span>
+    <span class="logo-sub">Signal Model</span>
   </div>
-  <div class="header-right">
-    <div class="timestamp" id="clock">--:--:-- EDT</div>
-    <div class="status-badge">● LIVE</div>
+  <div class="topbar-right">
+    <div class="fetch-pills" id="pills"></div>
+    <span class="last-upd" id="lastUpd">Not fetched</span>
+    <button class="refresh-btn" id="refreshBtn" onclick="fetchAll()">
+      <span class="spin">⟳</span>&nbsp;Refresh
+    </button>
   </div>
-</header>
+</div>
 
 <div class="main">
+  <div class="sig-strip" id="strip"></div>
 
-  <!-- KEY METRICS -->
-  <div class="metrics-grid" style="grid-column:1/4">
-    <div class="panel-header">
-      <div class="panel-title">KEY ECONOMIC INDICATORS</div>
-      <div class="panel-badge" id="metricsUpdated">LOADING…</div>
-    </div>
-    <div class="metrics-inner" id="metricsGrid">
-      <!-- populated by JS -->
-    </div>
-  </div>
-
-  <!-- NEWS FEED (sticky right column) -->
-  <div class="news-panel">
-    <div class="news-header">
-      <div class="panel-title">MACRO NEWS FEED</div>
-      <div class="panel-badge" id="newsCount">0 ITEMS</div>
-    </div>
-    <div class="news-list" id="newsFeed">
-      <div style="padding:20px; color: var(--muted); font-size:11px; text-align:center; margin-top:20px;">
-        Loading news feed…
+  <!-- HERO -->
+  <div class="hero">
+    <div class="comp-card" id="compCard">
+      <div class="comp-label">Composite Score</div>
+      <div class="comp-score" id="compScore">—</div>
+      <div class="comp-sig" id="compSig">awaiting data</div>
+      <div class="pos-badge pb-neu" id="posBadge">● Hold / Cash</div>
+      <div class="gauge-wrap">
+        <div class="gauge-track">
+          <div class="gauge-fill" id="gaugeFill" style="width:50%;background:var(--neutral)"></div>
+        </div>
+        <div class="gauge-ticks"><span>−100</span><span>−50</span><span>0</span><span>+50</span><span>+100</span></div>
       </div>
     </div>
+    <div class="cat-sums" id="catSums"></div>
   </div>
 
-  <!-- YIELD CURVE -->
-  <div class="yield-panel">
-    <div class="panel-header">
-      <div class="panel-title">YIELD CURVE</div>
-      <div class="panel-badge" id="yieldStatus">LOADING</div>
+  <!-- INDICATORS -->
+  <div>
+    <div class="sec-head">
+      <span class="sec-title">Factor Indicators</span>
+      <div class="sec-line"></div>
+      <span class="sec-note">BLUE = AUTO-FETCHED &nbsp;·&nbsp; ✎ = MANUAL ENTRY</span>
     </div>
-    <canvas id="yieldChart" height="130"></canvas>
+    <div class="cats-grid" id="catsGrid"></div>
   </div>
 
-  <!-- FED WATCH -->
-  <div class="panel stress-panel">
-    <div class="panel-header">
-      <div class="panel-title">FED RATE EXPECTATIONS</div>
-      <div class="panel-badge">NEXT 3 MEETINGS</div>
+  <!-- BOTTOM -->
+  <div class="bot">
+    <div class="panel">
+      <h3>Trade Notes <button class="save-btn" onclick="saveSnap()">Save Snapshot</button></h3>
+      <textarea id="notes" placeholder="Enter your thesis...&#10;e.g. Fed on hold, HY spreads tightening, NDX above 200MA → tilt TQQQ"></textarea>
     </div>
-    <div id="fedWatch">
-      <div class="prob-bars" id="fedProbBars"></div>
-    </div>
-  </div>
-
-  <!-- RECESSION INDICATOR -->
-  <div class="panel recession-panel">
-    <div class="panel-header">
-      <div class="panel-title">RECESSION SIGNALS</div>
-      <div class="panel-badge">COMPOSITE</div>
-    </div>
-    <div id="recessionContent"></div>
-  </div>
-
-  <!-- BOTTOM STRIP -->
-  <div class="bottom-strip">
-    <!-- LEADING INDICATORS -->
-    <div>
-      <div class="strip-section-title">LEADING INDICATORS</div>
-      <table class="indicator-table" id="indicatorTable">
-        <tr><td class="ind-name">GDP Growth (QoQ ann.)</td><td class="ind-val" id="ind-gdp">—</td><td class="ind-signal"><span class="signal-pill ok" id="sig-gdp">—</span></td></tr>
-        <tr><td class="ind-name">Unemployment Rate</td><td class="ind-val" id="ind-unemp">—</td><td class="ind-signal"><span class="signal-pill ok" id="sig-unemp">—</span></td></tr>
-        <tr><td class="ind-name">Core PCE YoY</td><td class="ind-val" id="ind-pce">—</td><td class="ind-signal"><span class="signal-pill warm" id="sig-pce">—</span></td></tr>
-        <tr><td class="ind-name">CPI YoY</td><td class="ind-val" id="ind-cpi">—</td><td class="ind-signal"><span class="signal-pill warm" id="sig-cpi">—</span></td></tr>
-        <tr><td class="ind-name">NFP (Last Month)</td><td class="ind-val" id="ind-nfp">—</td><td class="ind-signal"><span class="signal-pill ok" id="sig-nfp">—</span></td></tr>
-        <tr><td class="ind-name">ISM Manufacturing</td><td class="ind-val" id="ind-ism">—</td><td class="ind-signal"><span class="signal-pill cold" id="sig-ism">—</span></td></tr>
-        <tr><td class="ind-name">ISM Services</td><td class="ind-val" id="ind-ismsvc">—</td><td class="ind-signal"><span class="signal-pill ok" id="sig-ismsvc">—</span></td></tr>
-        <tr><td class="ind-name">Consumer Sentiment</td><td class="ind-val" id="ind-umich">—</td><td class="ind-signal"><span class="signal-pill ok" id="sig-umich">—</span></td></tr>
-      </table>
-    </div>
-
-    <!-- UPCOMING EVENTS -->
-    <div>
-      <div class="strip-section-title">UPCOMING ECONOMIC EVENTS</div>
-      <div id="calendarEvents">
-        <div style="color:var(--muted);font-size:11px;">Loading calendar…</div>
-      </div>
-    </div>
-
-    <!-- FINANCIAL CONDITIONS -->
-    <div>
-      <div class="strip-section-title">FINANCIAL CONDITIONS</div>
-      <table class="indicator-table" id="finCondTable">
-        <tr><td class="ind-name">Fed Funds Rate</td><td class="ind-val" id="fc-ffr">—</td><td class="ind-signal"><span class="signal-pill warm" id="sig-ffr">—</span></td></tr>
-        <tr><td class="ind-name">10Y Treasury</td><td class="ind-val" id="fc-10y">—</td><td class="ind-signal"><span class="signal-pill ok" id="sig-10y">—</span></td></tr>
-        <tr><td class="ind-name">2Y Treasury</td><td class="ind-val" id="fc-2y">—</td><td class="ind-signal"><span class="signal-pill ok" id="sig-2y">—</span></td></tr>
-        <tr><td class="ind-name">10Y - 2Y Spread</td><td class="ind-val" id="fc-spread">—</td><td class="ind-signal"><span class="signal-pill ok" id="sig-spread">—</span></td></tr>
-        <tr><td class="ind-name">DXY (Dollar Index)</td><td class="ind-val" id="fc-dxy">—</td><td class="ind-signal"><span class="signal-pill neutral" id="sig-dxy">—</span></td></tr>
-        <tr><td class="ind-name">WTI Crude Oil</td><td class="ind-val" id="fc-oil">—</td><td class="ind-signal"><span class="signal-pill neutral" id="sig-oil">—</span></td></tr>
-        <tr><td class="ind-name">Gold</td><td class="ind-val" id="fc-gold">—</td><td class="ind-signal"><span class="signal-pill neutral" id="sig-gold">—</span></td></tr>
-        <tr><td class="ind-name">VIX</td><td class="ind-val" id="fc-vix">—</td><td class="ind-signal"><span class="signal-pill ok" id="sig-vix">—</span></td></tr>
-      </table>
+    <div class="panel">
+      <h3>Snapshots</h3>
+      <div id="histContainer"><div class="empty">No snapshots yet.</div></div>
     </div>
   </div>
-
+</div>
 </div>
 
 <script>
-// ════════════════════════════════════════════════════════
-//  CLOCK
-// ════════════════════════════════════════════════════════
-function updateClock() {
-  const now = new Date();
-  const opts = { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'America/New_York', hour12: false };
-  document.getElementById('clock').textContent = now.toLocaleTimeString('en-US', opts) + ' EDT';
-}
-setInterval(updateClock, 1000);
-updateClock();
+const FRED_KEY = '922c3915c90df5c095da13084111e04d';
+const FRED_URL = (s, n=2) =>
+  `https://api.stlouisfed.org/fred/series/observations?series_id=${s}&api_key=${FRED_KEY}&file_type=json&sort_order=desc&limit=${n}`;
 
-// ════════════════════════════════════════════════════════
-//  STATIC / SEEDED DATA
-//  In production, replace fetch() calls with real API calls
-//  to FRED (https://fred.stlouisfed.org/docs/api/fred/) or
-//  your own backend proxy.
-// ════════════════════════════════════════════════════════
-
-const DATA = {
-  // All values approximate as of early 2025 (update regularly or wire to FRED API)
-  gdp:           { val: '2.3%',  delta: '+0.1',  dir: 'up'   },
-  unemployment:  { val: '4.1%',  delta: '-0.1',  dir: 'up'   },
-  corePCE:       { val: '2.8%',  delta: '-0.1',  dir: 'up'   },
-  cpi:           { val: '3.0%',  delta: '-0.2',  dir: 'up'   },
-  nfp:           { val: '+151K', delta: '-76K',  dir: 'down' },
-  fedFunds:      { val: '4.33%', delta: '0.00',  dir: 'neutral'},
-  tenYear:       { val: '4.29%', delta: '+0.04', dir: 'down' },
-  twoYear:       { val: '4.09%', delta: '+0.02', dir: 'down' },
-  spread:        { val: '+0.20', delta: '+0.02', dir: 'up'   },
-  vix:           { val: '18.4',  delta: '-1.2',  dir: 'up'   },
-  dxy:           { val: '104.2', delta: '-0.3',  dir: 'up'   },
-  wti:           { val: '$70.4', delta: '-0.8',  dir: 'down' },
-  gold:          { val: '$2,930',delta: '+12',   dir: 'up'   },
-  ism_mfg:       { val: '47.8',  delta: '+0.4',  dir: 'down' },
-  ism_svc:       { val: '52.8',  delta: '-0.3',  dir: 'up'   },
-  umich:         { val: '67.8',  delta: '-1.2',  dir: 'down' },
-};
-
-// Yield curve data points
-const YIELDS = {
-  labels: ['1M','3M','6M','1Y','2Y','3Y','5Y','7Y','10Y','20Y','30Y'],
-  current: [4.35,4.33,4.28,4.21,4.09,4.05,4.15,4.22,4.29,4.50,4.60],
-  yearAgo: [5.44,5.48,5.47,5.18,4.70,4.42,4.16,4.24,4.24,4.51,4.38],
-};
-
-// ════════════════════════════════════════════════════════
-//  TICKER BAR
-// ════════════════════════════════════════════════════════
-const tickerItems = [
-  { name: 'S&P 500',  val: '5,720', chg: '+0.42%', up: true },
-  { name: 'NDQ 100',  val: '20,184', chg: '+0.61%', up: true },
-  { name: 'DOW',      val: '42,587', chg: '+0.19%', up: true },
-  { name: 'RUSSELL',  val: '2,198',  chg: '-0.23%', up: false },
-  { name: '10Y',      val: '4.29%',  chg: '+4bp',   up: false },
-  { name: '2Y',       val: '4.09%',  chg: '+2bp',   up: false },
-  { name: 'DXY',      val: '104.2',  chg: '-0.3',   up: false },
-  { name: 'WTI',      val: '$70.4',  chg: '-0.8',   up: false },
-  { name: 'GOLD',     val: '$2,930', chg: '+12',    up: true },
-  { name: 'BTC',      val: '$86,200',chg: '+1.2%',  up: true },
-  { name: 'EUR/USD',  val: '1.0820', chg: '+0.3%',  up: true },
-  { name: 'VIX',      val: '18.4',   chg: '-1.2',   up: true },
-  { name: 'FED RATE', val: '4.33%',  chg: 'HOLD',   up: null },
-];
-
-function buildTicker() {
-  const items = [...tickerItems, ...tickerItems]; // duplicate for seamless loop
-  const html = items.map(t => `
-    <div class="ticker-item">
-      <span class="ticker-name">${t.name}</span>
-      <span class="ticker-val">${t.val}</span>
-      <span class="ticker-chg ${t.up === null ? '' : t.up ? 'up' : 'down'}">${t.chg}</span>
-    </div>
-  `).join('');
-  document.getElementById('tickerInner').innerHTML = html;
-}
-buildTicker();
-
-// ════════════════════════════════════════════════════════
-//  METRICS GRID
-// ════════════════════════════════════════════════════════
-const metricCards = [
-  { id:'gdp',    label:'GDP GROWTH',      val: DATA.gdp.val,          delta: DATA.gdp.delta,         dir: DATA.gdp.dir,          barPct:50, color:'var(--accent)' },
-  { id:'unmp',   label:'UNEMPLOYMENT',    val: DATA.unemployment.val, delta: DATA.unemployment.delta,dir: DATA.unemployment.dir, barPct:72, color:'var(--orange)' },
-  { id:'cpi',    label:'CPI YoY',         val: DATA.cpi.val,          delta: DATA.cpi.delta,         dir: DATA.cpi.dir,          barPct:62, color:'var(--yellow)' },
-  { id:'pce',    label:'CORE PCE YoY',    val: DATA.corePCE.val,      delta: DATA.corePCE.delta,     dir: DATA.corePCE.dir,      barPct:58, color:'var(--orange)' },
-  { id:'ffr',    label:'FED FUNDS RATE',  val: DATA.fedFunds.val,     delta: DATA.fedFunds.delta,    dir: DATA.fedFunds.dir,     barPct:80, color:'var(--accent2)' },
-  { id:'10y',    label:'10Y TREASURY',    val: DATA.tenYear.val,      delta: DATA.tenYear.delta,     dir: DATA.tenYear.dir,      barPct:66, color:'var(--accent2)' },
-  { id:'vix2',   label:'VIX (FEAR IDX)',  val: DATA.vix.val,          delta: DATA.vix.delta,         dir: DATA.vix.dir,          barPct:35, color:'var(--yellow)' },
-  { id:'nfp2',   label:'NON-FARM PAYROLLS',val:DATA.nfp.val,          delta: DATA.nfp.delta,         dir: DATA.nfp.dir,          barPct:45, color:'var(--accent)' },
-];
-
-function buildMetrics() {
-  const grid = document.getElementById('metricsGrid');
-  grid.innerHTML = metricCards.map(m => `
-    <div class="metric-card" style="--accent-color: ${m.color}">
-      <div class="metric-label">${m.label}</div>
-      <div class="metric-value">${m.val}</div>
-      <div class="metric-sub">
-        <span class="metric-delta ${m.dir}">${m.dir==='up'?'▲':m.dir==='down'?'▼':'—'} ${m.delta}</span>
-        <span style="color:var(--muted)">vs prior</span>
-      </div>
-      <div class="metric-bar">
-        <div class="metric-bar-fill" style="width:0%" data-pct="${m.barPct}"></div>
-      </div>
-    </div>
-  `).join('');
-
-  // Animate bars after render
-  setTimeout(() => {
-    document.querySelectorAll('.metric-bar-fill').forEach(el => {
-      el.style.width = el.dataset.pct + '%';
-    });
-  }, 200);
-
-  document.getElementById('metricsUpdated').textContent = 'UPDATED ' + new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false});
-}
-buildMetrics();
-
-// ════════════════════════════════════════════════════════
-//  YIELD CURVE CHART
-// ════════════════════════════════════════════════════════
-function buildYieldChart() {
-  const canvas = document.getElementById('yieldChart');
-  const W = canvas.parentElement.clientWidth - 40;
-  canvas.width = W;
-  canvas.height = 130;
-  const ctx = canvas.getContext('2d');
-
-  const labels = YIELDS.labels;
-  const curr   = YIELDS.current;
-  const prior  = YIELDS.yearAgo;
-  const pad    = { l:36, r:10, t:10, b:24 };
-  const cW     = W - pad.l - pad.r;
-  const cH     = 130 - pad.t - pad.b;
-
-  const allVals = [...curr, ...prior];
-  const minY = Math.min(...allVals) - 0.1;
-  const maxY = Math.max(...allVals) + 0.1;
-
-  function xPos(i)    { return pad.l + (i / (labels.length-1)) * cW; }
-  function yPos(v)    { return pad.t + cH - ((v - minY) / (maxY - minY)) * cH; }
-
-  // Grid lines
-  ctx.strokeStyle = 'rgba(30,37,48,1)';
-  ctx.lineWidth = 1;
-  for (let i=0; i<=4; i++) {
-    const y = pad.t + (i/4)*cH;
-    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l+cW, y); ctx.stroke();
-    const val = (maxY - (i/4)*(maxY-minY)).toFixed(2);
-    ctx.fillStyle = '#4a5568';
-    ctx.font = '9px IBM Plex Mono';
-    ctx.textAlign = 'right';
-    ctx.fillText(val+'%', pad.l-4, y+3);
-  }
-
-  // X labels
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#4a5568';
-  ctx.font = '9px IBM Plex Mono';
-  labels.forEach((l,i) => {
-    if (i % 2 === 0) ctx.fillText(l, xPos(i), 130 - 5);
-  });
-
-  // Zero inversion line at 0 spread
-  // (draw y=4.0 reference)
-  ctx.strokeStyle = 'rgba(107,122,143,0.2)';
-  ctx.setLineDash([4,4]);
-  ctx.beginPath(); ctx.moveTo(pad.l, yPos(4.0)); ctx.lineTo(pad.l+cW, yPos(4.0)); ctx.stroke();
-  ctx.setLineDash([]);
-
-  // Prior year curve
-  ctx.beginPath();
-  ctx.strokeStyle = 'rgba(107,122,143,0.4)';
-  ctx.lineWidth = 1.5;
-  prior.forEach((v,i) => i===0 ? ctx.moveTo(xPos(i),yPos(v)) : ctx.lineTo(xPos(i),yPos(v)));
-  ctx.stroke();
-
-  // Current curve with gradient fill
-  const grad = ctx.createLinearGradient(0, pad.t, 0, pad.t+cH);
-  grad.addColorStop(0, 'rgba(0,212,170,0.25)');
-  grad.addColorStop(1, 'rgba(0,212,170,0.0)');
-
-  ctx.beginPath();
-  curr.forEach((v,i) => i===0 ? ctx.moveTo(xPos(i),yPos(v)) : ctx.lineTo(xPos(i),yPos(v)));
-  ctx.strokeStyle = '#00d4aa';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-
-  // Fill
-  ctx.lineTo(xPos(curr.length-1), pad.t+cH);
-  ctx.lineTo(xPos(0), pad.t+cH);
-  ctx.closePath();
-  ctx.fillStyle = grad;
-  ctx.fill();
-
-  // Dots on current
-  curr.forEach((v,i) => {
-    ctx.beginPath();
-    ctx.arc(xPos(i), yPos(v), 2.5, 0, Math.PI*2);
-    ctx.fillStyle = '#00d4aa';
-    ctx.fill();
-  });
-
-  // Status
-  const spread = curr[curr.length-1] - curr[1]; // 30Y - 3M
-  const tenTwo = curr[8] - curr[4]; // 10Y - 2Y
-  const statusEl = document.getElementById('yieldStatus');
-  if (tenTwo < 0) {
-    statusEl.textContent = '⚠ INVERTED';
-    statusEl.style.color = 'var(--red)';
-  } else {
-    statusEl.textContent = `10Y-2Y: +${(tenTwo*100).toFixed(0)}bp NORMAL`;
-    statusEl.style.color = 'var(--green)';
-  }
-}
-
-window.addEventListener('load', buildYieldChart);
-window.addEventListener('resize', buildYieldChart);
-
-// ════════════════════════════════════════════════════════
-//  FED WATCH
-// ════════════════════════════════════════════════════════
-const fedMeetings = [
-  {
-    date: 'MAR 19', label: 'March FOMC',
-    outcomes: [
-      { label: '-25bp', pct: 3,  color: '#0095ff' },
-      { label: 'HOLD',  pct: 95, color: '#00d4aa' },
-      { label: '+25bp', pct: 2,  color: '#ff4757' },
-    ]
-  },
-  {
-    date: 'MAY 7', label: 'May FOMC',
-    outcomes: [
-      { label: '-25bp', pct: 28, color: '#0095ff' },
-      { label: 'HOLD',  pct: 68, color: '#00d4aa' },
-      { label: '+25bp', pct: 4,  color: '#ff4757' },
-    ]
-  },
-  {
-    date: 'JUN 18', label: 'June FOMC',
-    outcomes: [
-      { label: '-25bp', pct: 52, color: '#0095ff' },
-      { label: 'HOLD',  pct: 43, color: '#00d4aa' },
-      { label: '+25bp', pct: 5,  color: '#ff4757' },
-    ]
-  },
-];
-
-function buildFedWatch() {
-  const container = document.getElementById('fedProbBars');
-  container.innerHTML = fedMeetings.map(m => `
-    <div style="margin-bottom:14px;">
-      <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:7px;">
-        ${m.date} — ${m.label}
-      </div>
-      ${m.outcomes.map(o => `
-        <div class="prob-row">
-          <div class="prob-label">${o.label}</div>
-          <div class="prob-track">
-            <div class="prob-fill" style="width:0%; background:${o.color}" data-pct="${o.pct}"></div>
-          </div>
-          <div class="prob-pct">${o.pct}%</div>
-        </div>
-      `).join('')}
-    </div>
-  `).join('');
-
-  setTimeout(() => {
-    document.querySelectorAll('.prob-fill').forEach(el => {
-      el.style.width = el.dataset.pct + '%';
-    });
-  }, 300);
-}
-buildFedWatch();
-
-// ════════════════════════════════════════════════════════
-//  RECESSION SIGNALS
-// ════════════════════════════════════════════════════════
-function buildRecessionIndicator() {
-  // Score from 0 (no risk) to 100 (high risk)
-  // Based on: yield curve, unemployment trend, leading indicators
-  const signals = [
-    { name: 'Yield Curve (10Y-2Y)', val: '+20bp', score: 20, ok: true },
-    { name: 'Unemployment Trend',   val: 'Rising', score: 45, ok: false },
-    { name: 'ISM Manufacturing',    val: '47.8 (contraction)', score: 65, ok: false },
-    { name: 'LEI (6mo chg)',        val: '-0.4%', score: 55, ok: false },
-    { name: 'Sahm Rule Trigger',    val: '0.33 (below 0.5)', score: 25, ok: true },
-  ];
-
-  const composite = Math.round(signals.reduce((s,x) => s+x.score, 0) / signals.length);
-
-  const color = composite < 30 ? 'var(--green)' : composite < 55 ? 'var(--yellow)' : 'var(--red)';
-  const label = composite < 30 ? 'LOW' : composite < 55 ? 'MODERATE' : 'ELEVATED';
-
-  document.getElementById('recessionContent').innerHTML = `
-    <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
-      <div>
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:36px;font-weight:600;color:${color};line-height:1">${composite}<span style="font-size:16px">/100</span></div>
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:${color};letter-spacing:.12em;margin-top:4px">${label} RISK</div>
-      </div>
-      <div style="flex:1;">
-        <div style="height:6px;background:linear-gradient(90deg,var(--green),var(--yellow),var(--red));border-radius:3px;position:relative;margin-bottom:4px">
-          <div style="position:absolute;top:-2px;left:${composite}%;transform:translateX(-50%);width:10px;height:10px;background:white;border-radius:50%;border:2px solid ${color}"></div>
-        </div>
-        <div style="display:flex;justify-content:space-between;font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted)">
-          <span>LOW</span><span>MOD</span><span>HIGH</span>
-        </div>
-      </div>
-    </div>
-    ${signals.map(s => `
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)">
-        <div style="font-size:10px;color:var(--muted)">${s.name}</div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text)">${s.val}</div>
-          <div style="width:8px;height:8px;border-radius:50%;background:${s.ok?'var(--green)':'var(--orange)'}"></div>
-        </div>
-      </div>
-    `).join('')}
-  `;
-}
-buildRecessionIndicator();
-
-// ════════════════════════════════════════════════════════
-//  INDICATOR TABLE
-// ════════════════════════════════════════════════════════
-function getSignal(id, val) {
-  // Returns { css, label } based on indicator and value
-  const map = {
-    'ind-gdp':    { v:2.3,  hot:'>4',   ok:'>1.5', cold:'<0'  },
-    'ind-unemp':  { v:4.1  },
-    'ind-pce':    { v:2.8  },
-    'ind-cpi':    { v:3.0  },
-    'ind-nfp':    { v:151  },
-    'ind-ism':    { v:47.8 },
-    'ind-ismsvc': { v:52.8 },
-    'ind-umich':  { v:67.8 },
-  };
-  return null;
-}
-
-function populateIndicators() {
-  const pairs = [
-    ['ind-gdp',    'sig-gdp',    DATA.gdp.val,          'ok',   'OK'],
-    ['ind-unemp',  'sig-unemp',  DATA.unemployment.val, 'ok',   'OK'],
-    ['ind-pce',    'sig-pce',    DATA.corePCE.val,       'warm', 'ABOVE 2%'],
-    ['ind-cpi',    'sig-cpi',    DATA.cpi.val,           'warm', 'ABOVE 2%'],
-    ['ind-nfp',    'sig-nfp',    DATA.nfp.val,           'ok',   'SOLID'],
-    ['ind-ism',    'sig-ism',    DATA.ism_mfg.val,       'cold', 'CONTRACT'],
-    ['ind-ismsvc', 'sig-ismsvc', DATA.ism_svc.val,       'ok',   'EXPAND'],
-    ['ind-umich',  'sig-umich',  DATA.umich.val,         'warm', 'DECLINING'],
-
-    ['fc-ffr',   'sig-ffr',  DATA.fedFunds.val, 'warm',    'TIGHT'],
-    ['fc-10y',   'sig-10y',  DATA.tenYear.val,  'ok',      'OK'],
-    ['fc-2y',    'sig-2y',   DATA.twoYear.val,  'ok',      'OK'],
-    ['fc-spread','sig-spread',DATA.spread.val,  'ok',      'NORMAL'],
-    ['fc-dxy',   'sig-dxy',  DATA.dxy.val,      'neutral', 'NEUTRAL'],
-    ['fc-oil',   'sig-oil',  DATA.wti.val,      'ok',      'MODERATE'],
-    ['fc-gold',  'sig-gold', DATA.gold.val,     'warm',    'ELEVATED'],
-    ['fc-vix',   'sig-vix',  DATA.vix.val,      'ok',      'LOW'],
-  ];
-
-  pairs.forEach(([valId, sigId, val, cls, lbl]) => {
-    const ve = document.getElementById(valId);
-    const se = document.getElementById(sigId);
-    if (ve) ve.textContent = val;
-    if (se) { se.textContent = lbl; se.className = `signal-pill ${cls}`; }
-  });
-}
-populateIndicators();
-
-// ════════════════════════════════════════════════════════
-//  CALENDAR
-// ════════════════════════════════════════════════════════
-const calEvents = [
-  { date: 'MAR 7',  name: 'Non-Farm Payrolls',        forecast: 'Prev: +151K' },
-  { date: 'MAR 12', name: 'CPI Report',                forecast: 'Exp: 3.0% YoY' },
-  { date: 'MAR 14', name: 'PPI Report',                forecast: 'Exp: 3.2% YoY' },
-  { date: 'MAR 19', name: '🏛 FOMC Meeting',          forecast: 'Exp: HOLD at 4.25-4.50%' },
-  { date: 'MAR 26', name: 'GDP (2nd Estimate Q4)',     forecast: 'Exp: 2.3% annualized' },
-  { date: 'MAR 28', name: 'Core PCE (Feb)',            forecast: 'Exp: 2.7% YoY' },
-  { date: 'APR 2',  name: 'ISM Manufacturing',         forecast: 'Prev: 47.8' },
-  { date: 'APR 4',  name: 'Jobs Report (March)',       forecast: 'Exp: +165K' },
-  { date: 'APR 10', name: 'CPI Report (March)',        forecast: 'Prev: 3.0%' },
-  { date: 'MAY 7',  name: '🏛 FOMC Meeting',          forecast: 'First cut possible' },
-];
-
-function buildCalendar() {
-  document.getElementById('calendarEvents').innerHTML = calEvents.map(e => `
-    <div class="event-item">
-      <div class="event-date">${e.date}</div>
-      <div>
-        <div class="event-name">${e.name}</div>
-        <div class="event-forecast">${e.forecast}</div>
-      </div>
-    </div>
-  `).join('');
-}
-buildCalendar();
-
-// ════════════════════════════════════════════════════════
-//  NEWS FEED  (Using Claude API)
-// ════════════════════════════════════════════════════════
-
-const MACRO_NEWS_TOPICS = [
-  "Federal Reserve monetary policy interest rates 2025",
-  "US inflation CPI PCE data 2025",
-  "US jobs market employment February 2025",
-  "US GDP economic growth outlook 2025",
-  "US Treasury yields bond market 2025",
-  "recession risk leading indicators 2025",
-  "US dollar DXY strength 2025",
-  "tariffs trade policy US economy 2025",
-];
-
-let newsItems = [];
-
-async function fetchNewsWithClaude() {
-  const feedEl = document.getElementById('newsFeed');
-  feedEl.innerHTML = `<div style="padding:20px;color:var(--muted);font-size:11px;text-align:center">Generating macro intelligence…</div>`;
-
-  const topic = MACRO_NEWS_TOPICS[Math.floor(Math.random() * MACRO_NEWS_TOPICS.length)];
-
+async function fredObs(series, n=2) {
   try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1000,
-        tools: [{ type: "web_search_20250305", name: "web_search" }],
-        system: `You are a macroeconomic intelligence system. Search the web for recent news on US economic conditions, then return ONLY a JSON array (no markdown, no preamble) of news items. Each item must have exactly these fields:
-{
-  "source": "SHORT SOURCE NAME",
-  "time": "X hours ago",
-  "title": "Concise news headline",
-  "sentiment": "bullish" | "bearish" | "neutral"
+    const r = await fetch(FRED_URL(series, n));
+    const d = await r.json();
+    return (d.observations || []).filter(o => o.value !== '.');
+  } catch { return []; }
 }
-Return 8-10 items. Focus on: Fed policy, inflation, jobs, GDP, bonds, recession risk, financial conditions.`,
-        messages: [{ role: "user", content: `Search for and return the latest US macroeconomic news and developments as a JSON array. Topics to cover: Federal Reserve, inflation, employment, growth, bonds, financial conditions. Today is ${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}.` }],
-      })
-    });
 
-    const data = await response.json();
-    const text = data.content
-      .filter(b => b.type === 'text')
-      .map(b => b.text)
-      .join('');
+async function fredVal(series) {
+  const obs = await fredObs(series, 2);
+  if (!obs.length) return null;
+  const v = parseFloat(obs[0].value);
+  return isNaN(v) ? null : v;
+}
 
-    let parsed;
-    try {
-      const clean = text.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim();
-      // extract JSON array
-      const match = clean.match(/\[[\s\S]*\]/);
-      parsed = match ? JSON.parse(match[0]) : null;
-    } catch(e) {
-      parsed = null;
-    }
+async function yahooCloses(symbol, range='300d', interval='1d') {
+  try {
+    const r = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=${interval}&range=${range}`);
+    const d = await r.json();
+    return d.chart.result[0].indicators.quote[0].close.filter(x => x != null);
+  } catch { return null; }
+}
 
-    if (parsed && Array.isArray(parsed)) {
-      newsItems = parsed;
-      renderNews();
-    } else {
-      // fallback
-      renderFallbackNews();
-    }
+function calcRSI(closes, p=14) {
+  if (closes.length < p+1) return 50;
+  let g=0, l=0;
+  for (let i=closes.length-p; i<closes.length; i++) {
+    const diff = closes[i]-closes[i-1];
+    if (diff>0) g+=diff; else l-=diff;
+  }
+  const rs = g/(l||0.0001);
+  return +(100 - 100/(1+rs)).toFixed(1);
+}
 
-  } catch(e) {
-    renderFallbackNews();
+function calcEMA(data, p) {
+  const k = 2/(p+1); let e = data[0];
+  return data.map((v,i) => { if(i===0) return e; e = v*k+e*(1-k); return e; });
+}
+
+function calcMACD(closes) {
+  const ef = calcEMA(closes,12), es = calcEMA(closes,26);
+  const ml = ef.map((v,i)=>v-es[i]);
+  const sl = calcEMA(ml.slice(25),9);
+  const hist = sl.map((s,i)=>ml[25+i]-s);
+  return hist;
+}
+
+const CATS = [
+  {
+    id:'macro', name:'Macro Regime', color:'#5577ff', dw:30,
+    inds:[
+      { id:'yield_curve', name:'Yield Curve (2s10s)', hint:'bps · negative = inverted',
+        type:'number', unit:'bp', th:{bull:20,bear:-30},
+        fetch: async()=>{ const v=await fredVal('T10Y2Y'); return v!=null?+(v*100).toFixed(1):null; }
+      },
+      { id:'hy_spreads', name:'HY Credit Spreads (OAS)', hint:'bps · widening = bearish',
+        type:'number', unit:'bp', th:{bull:350,bear:500},
+        fetch: async()=>fredVal('BAMLH0A0HYM2')
+      },
+      { id:'real_ffr', name:'Real Fed Funds Rate', hint:'FFR − CPI YoY',
+        type:'number', unit:'%', th:{bull:-1,bear:2.5},
+        fetch: async()=>{
+          const obs = await fredObs('CPIAUCSL', 14);
+          const ffr = await fredVal('FEDFUNDS');
+          if(!obs.length || ffr==null) return null;
+          const v0=parseFloat(obs[0].value), v12=parseFloat((obs[12]||obs[obs.length-1]).value);
+          if(isNaN(v0)||isNaN(v12)||v12===0) return null;
+          const cpiYoy=(v0/v12-1)*100;
+          return +(ffr-cpiYoy).toFixed(2);
+        }
+      },
+      { id:'fed_stance', name:'Fed Policy Stance', hint:'hiking / neutral / cutting',
+        type:'select', options:['hiking','neutral','cutting'],
+        sigs:{'hiking':-1,'neutral':0,'cutting':1}, fetch:null
+      },
+      { id:'m2_yoy', name:'M2 Growth YoY', hint:'% · positive = liquidity bull',
+        type:'number', unit:'%', th:{bull:3,bear:-2},
+        fetch: async()=>{
+          const obs=await fredObs('M2SL',14);
+          if(obs.length<13) return null;
+          const v0=parseFloat(obs[0].value), v12=parseFloat(obs[12].value);
+          if(isNaN(v0)||isNaN(v12)||v12===0) return null;
+          return +((v0/v12-1)*100).toFixed(2);
+        }
+      },
+    ]
+  },
+  {
+    id:'growth', name:'Growth Cycle', color:'#00c896', dw:25,
+    inds:[
+      { id:'ism_mfg', name:'ISM Mfg PMI (NAPM)', hint:'>50 = expansion',
+        type:'number', unit:'', th:{bull:52,bear:47},
+        fetch: async()=>fredVal('NAPM')
+      },
+      { id:'lei_mom', name:'LEI MoM Change', hint:'% · direction of leading index',
+        type:'number', unit:'%', th:{bull:0.1,bear:-0.3},
+        fetch: async()=>{
+          const obs=await fredObs('USSLIND',3);
+          if(obs.length<2) return null;
+          const v0=parseFloat(obs[0].value), v1=parseFloat(obs[1].value);
+          if(isNaN(v0)||isNaN(v1)||v1===0) return null;
+          return +((v0/v1-1)*100).toFixed(3);
+        }
+      },
+      { id:'claims', name:'Initial Claims (4wk MA)', hint:'K · rising = stress',
+        type:'number', unit:'K', th:{bull:230,bear:290},
+        fetch: async()=>{ const v=await fredVal('IC4WSA'); return v!=null?+(v/1000).toFixed(1):null; }
+      },
+      { id:'gdp', name:'Real GDP Growth (latest)', hint:'% SAAR · BEA quarterly',
+        type:'number', unit:'%', th:{bull:2.0,bear:0.5},
+        fetch: async()=>fredVal('A191RL1Q225SBEA')
+      },
+    ]
+  },
+  {
+    id:'technical', name:'Price & Trend', color:'#ffaa33', dw:30,
+    inds:[
+      { id:'ndx_200', name:'QQQ vs 200-Day SMA', hint:'% above/below · >5% = bull',
+        type:'number', unit:'%', th:{bull:5,bear:-5},
+        fetch: async()=>{
+          const c=await yahooCloses('QQQ','300d','1d');
+          if(!c||c.length<200) return null;
+          const latest=c[c.length-1];
+          const sma200=c.slice(-200).reduce((a,b)=>a+b,0)/200;
+          return +((latest/sma200-1)*100).toFixed(2);
+        }
+      },
+      { id:'ndx_rsi', name:'QQQ Weekly RSI (14)', hint:'>60 = bull · <40 = bear',
+        type:'number', unit:'', th:{bull:60,bear:40},
+        fetch: async()=>{
+          const c=await yahooCloses('QQQ','2y','1wk');
+          if(!c||c.length<15) return null;
+          return calcRSI(c,14);
+        }
+      },
+      { id:'macd_sig', name:'QQQ Weekly MACD', hint:'histogram direction',
+        type:'select', options:['bullish cross','bullish','neutral','bearish','bearish cross'],
+        sigs:{'bullish cross':1,'bullish':0.7,'neutral':0,'bearish':-0.7,'bearish cross':-1},
+        fetch: async()=>{
+          const c=await yahooCloses('QQQ','2y','1wk');
+          if(!c||c.length<30) return null;
+          const hist=calcMACD(c);
+          if(hist.length<2) return null;
+          const l=hist[hist.length-1], p=hist[hist.length-2];
+          if(l>0&&p<=0) return 'bullish cross';
+          if(l<0&&p>=0) return 'bearish cross';
+          if(l>0&&l>=p) return 'bullish';
+          if(l>0&&l<p) return 'neutral';
+          if(l<0) return 'bearish';
+          return 'neutral';
+        }
+      },
+      { id:'breadth', name:'NDX % Above 200MA', hint:'% stocks · >60% = bull',
+        type:'number', unit:'%', th:{bull:60,bear:40}, fetch:null
+      },
+    ]
+  },
+  {
+    id:'sentiment', name:'Sentiment & Vol', color:'#ff5577', dw:15,
+    inds:[
+      { id:'vix', name:'VIX Level', hint:'<15 = calm · >25 = stress',
+        type:'number', unit:'', th:{bull:15,bear:25},
+        fetch: async()=>{
+          const c=await yahooCloses('^VIX','5d','1d');
+          if(!c||!c.length) return null;
+          return +c[c.length-1].toFixed(2);
+        }
+      },
+      { id:'vix_ts', name:'VIX Term Structure', hint:'VIX vs VIX3M · contango = calm',
+        type:'select', options:['steep contango','contango','flat','backwardation','steep backwardation'],
+        sigs:{'steep contango':1,'contango':0.6,'flat':0,'backwardation':-0.6,'steep backwardation':-1},
+        fetch: async()=>{
+          const [v1,v3]=await Promise.all([
+            yahooCloses('^VIX','5d','1d'),
+            yahooCloses('^VIX3M','5d','1d')
+          ]);
+          if(!v1||!v3) return null;
+          const spot=v1[v1.length-1], vix3=v3[v3.length-1];
+          const sp=vix3-spot;
+          if(sp>3) return 'steep contango';
+          if(sp>0.5) return 'contango';
+          if(sp>-0.5) return 'flat';
+          if(sp>-3) return 'backwardation';
+          return 'steep backwardation';
+        }
+      },
+      { id:'putcall', name:'Put/Call Ratio (10d MA)', hint:'>1.0 = fear · <0.7 = greedy',
+        type:'number', unit:'', th:{bull:1.0,bear:0.7}, fetch:null
+      },
+      { id:'naaim', name:'NAAIM Exposure Index', hint:'% allocation · >80 = frothy',
+        type:'number', unit:'%', th:{bull:40,bear:80}, fetch:null
+      },
+    ]
+  }
+];
+
+// ── STATE ──
+const S = { weights:{}, values:{}, history:[] };
+CATS.forEach(c => {
+  S.weights[c.id] = c.dw;
+  c.inds.forEach(i => { S.values[i.id] = null; });
+});
+
+// ── SCORING ──
+function scoreInd(ind, val) {
+  if(val===null||val===''||val===undefined) return null;
+  if(ind.type==='select') {
+    const v=ind.sigs?.[val]; return v!==undefined?v:null;
+  }
+  const v=parseFloat(val); if(isNaN(v)) return null;
+  const {bull,bear}=ind.th;
+  if(bull>=bear) {
+    if(v>=bull) return 1; if(v<=bear) return -1;
+    return (v-bear)/(bull-bear)*2-1;
+  } else {
+    if(v<=bull) return 1; if(v>=bear) return -1;
+    return (bear-v)/(bear-bull)*2-1;
   }
 }
 
-const FALLBACK_NEWS = [
-  { source: 'FED WATCH', time: '2h ago', title: 'Fed holds rates steady; Powell signals patience on cuts as inflation remains above 2% target', sentiment: 'neutral' },
-  { source: 'LABOR DEPT', time: '3h ago', title: 'Initial jobless claims tick up to 224K, slightly above 215K consensus estimate', sentiment: 'bearish' },
-  { source: 'TREASURY', time: '4h ago', title: '10Y Treasury yield retreats to 4.29% amid safe-haven buying and softer economic prints', sentiment: 'bearish' },
-  { source: 'ISM', time: '5h ago', title: 'Manufacturing PMI holds at 47.8 for third consecutive month, signaling persistent contraction', sentiment: 'bearish' },
-  { source: 'BLS', time: '6h ago', title: 'January CPI comes in at 3.0% YoY — progress slowing on "last mile" of disinflation', sentiment: 'neutral' },
-  { source: 'COMMERCE', time: '8h ago', title: 'Q4 GDP revised to 2.3% annualized, consumer spending remains primary engine of growth', sentiment: 'neutral' },
-  { source: 'TRADE', time: '10h ago', title: 'New tariff announcements create uncertainty; economists revise inflation forecasts higher', sentiment: 'bearish' },
-  { source: 'SURVEY', time: '12h ago', title: 'UMich consumer sentiment drops to 67.8, expectations component hits lowest since late 2023', sentiment: 'bearish' },
-  { source: 'CME', time: '14h ago', title: 'Fed funds futures price 95% probability of hold in March, first cut odds shift to June', sentiment: 'neutral' },
-  { source: 'ISM SVC', time: '16h ago', title: 'Services sector activity at 52.8, sustaining expansion but employment component softens', sentiment: 'neutral' },
-];
-
-function renderFallbackNews() {
-  newsItems = FALLBACK_NEWS;
-  renderNews();
+function computeAll() {
+  const cs={};
+  CATS.forEach(c=>{
+    let sum=0,n=0;
+    c.inds.forEach(i=>{ const s=scoreInd(i,S.values[i.id]); if(s!==null){sum+=s;n++;} });
+    cs[c.id]=n>0?sum/n:null;
+  });
+  const tw=CATS.reduce((a,c)=>cs[c.id]!==null?a+S.weights[c.id]:a,0);
+  let comp=0;
+  if(tw>0) CATS.forEach(c=>{ if(cs[c.id]!==null) comp+=(S.weights[c.id]/tw)*cs[c.id]; });
+  return {cs, comp:comp*100};
 }
 
-function renderNews() {
-  const feedEl = document.getElementById('newsFeed');
-  document.getElementById('newsCount').textContent = `${newsItems.length} ITEMS`;
+function col(s) { return s>35?'var(--bull)':s<-35?'var(--bear)':'var(--neutral)'; }
+function lbl(s) { return s>60?'STRONG BULL':s>35?'BULLISH':s<-60?'STRONG BEAR':s<-35?'BEARISH':'NEUTRAL'; }
 
-  feedEl.innerHTML = newsItems.map(item => `
-    <div class="news-item">
-      <div class="news-source">
-        <span>${item.source}</span>
-        <span class="news-time">${item.time}</span>
+// ── UPDATE UI ──
+function updateUI() {
+  const {cs,comp}=computeAll();
+  const c=col(comp);
+
+  // Composite
+  document.getElementById('compScore').textContent=(comp>=0?'+':'')+Math.round(comp);
+  document.getElementById('compScore').style.color=c;
+  document.getElementById('compSig').textContent=lbl(comp);
+  document.getElementById('compSig').style.color=c;
+  const badge=document.getElementById('posBadge');
+  badge.className='pos-badge '+(comp>35?'pb-bull':comp<-35?'pb-bear':'pb-neu');
+  badge.textContent=comp>35?'▲ Long TQQQ':comp<-35?'▼ Long SQQQ':'● Hold / Cash';
+  const card=document.getElementById('compCard');
+  card.style.setProperty('--cg', comp>35?'var(--bull-glow)':comp<-35?'var(--bear-glow)':'var(--neutral-glow)');
+  card.style.borderColor=comp>35?'rgba(0,229,160,0.18)':comp<-35?'rgba(255,51,102,0.18)':'var(--border)';
+  const pct=Math.max(2,Math.min(98,(comp+100)/200*100));
+  const gf=document.getElementById('gaugeFill');
+  gf.style.width=pct+'%'; gf.style.background=c;
+
+  // Cat summaries
+  CATS.forEach(cat=>{
+    const s=cs[cat.id]; const sc=s!==null?Math.round(s*100):null;
+    const el=document.getElementById('cs-'+cat.id); if(!el) return;
+    const scoreEl=el.querySelector('.cs-score');
+    const fillEl=el.querySelector('.cs-fill');
+    const cntEl=el.querySelector('.cs-count');
+    const filled=cat.inds.filter(i=>S.values[i.id]!==null&&S.values[i.id]!=='').length;
+    if(sc!==null){
+      const cc=col(sc);
+      scoreEl.textContent=(sc>=0?'+':'')+sc; scoreEl.style.color=cc;
+      fillEl.style.width=Math.max(2,Math.min(98,(sc+100)/200*100))+'%'; fillEl.style.background=cc;
+    } else { scoreEl.textContent='—'; scoreEl.style.color='var(--muted)'; fillEl.style.width='50%'; fillEl.style.background='var(--border2)'; }
+    cntEl.textContent=`${filled}/${cat.inds.length} signals`;
+  });
+
+  // Ind rows
+  CATS.forEach(cat=>cat.inds.forEach(ind=>{
+    const s=scoreInd(ind,S.values[ind.id]);
+    const dot=document.getElementById('dot-'+ind.id);
+    const bar=document.getElementById('bar-'+ind.id);
+    if(dot){
+      if(s===null){dot.className='sdot sd-neu';dot.textContent='·';}
+      else if(s>0.2){dot.className='sdot sd-bull';dot.textContent='▲';}
+      else if(s<-0.2){dot.className='sdot sd-bear';dot.textContent='▼';}
+      else{dot.className='sdot sd-neu';dot.textContent='–';}
+    }
+    if(bar){
+      const p=s!==null?Math.max(2,Math.min(98,(s+1)/2*100)):50;
+      bar.style.width=p+'%'; bar.style.background=s!==null?col(s*100):'var(--border2)';
+    }
+  }));
+
+  // Strip
+  const strip=document.getElementById('strip'); strip.innerHTML='';
+  CATS.flatMap(c=>c.inds).forEach(ind=>{
+    const s=scoreInd(ind,S.values[ind.id]);
+    const seg=document.createElement('div'); seg.className='ss';
+    if(s!==null) seg.style.background=col(s*100);
+    strip.appendChild(seg);
+  });
+}
+
+// ── BUILD DOM ──
+function buildCatSums(){
+  const cont=document.getElementById('catSums');
+  CATS.forEach(cat=>{
+    const el=document.createElement('div');
+    el.className='cat-sum'; el.id='cs-'+cat.id;
+    el.style.setProperty('--cc',cat.color);
+    el.innerHTML=`
+      <div class="cs-head">
+        <span class="cs-name" style="color:${cat.color}">${cat.name}</span>
+        <span class="cs-score">—</span>
       </div>
-      <div class="news-title">${item.title}</div>
-      <span class="news-sentiment ${item.sentiment}">
-        ${item.sentiment === 'bullish' ? '▲' : item.sentiment === 'bearish' ? '▼' : '◆'} ${item.sentiment.toUpperCase()}
-      </span>
-    </div>
-  `).join('');
+      <div class="cs-bar"><div class="cs-fill" style="width:50%"></div></div>
+      <div class="cs-count">0/${cat.inds.length} signals</div>`;
+    cont.appendChild(el);
+  });
 }
 
-// ════════════════════════════════════════════════════════
-//  REFRESH LOGIC
-// ════════════════════════════════════════════════════════
-fetchNewsWithClaude();
+function buildCats(){
+  const grid=document.getElementById('catsGrid');
+  CATS.forEach(cat=>{
+    const blk=document.createElement('div'); blk.className='cat-block';
+    blk.innerHTML=`
+      <div class="cat-hdr">
+        <span class="cat-hdr-name" style="color:${cat.color}">${cat.name}</span>
+      </div>
+      <div class="cat-wt">
+        <span>weight</span>
+        <input type="range" min="0" max="50" value="${cat.dw}" oninput="setWeight('${cat.id}',this.value)">
+        <span class="wt-val" id="wv-${cat.id}">${cat.dw}%</span>
+      </div>`;
+    cat.inds.forEach(ind=>{
+      const row=document.createElement('div'); row.className='ind-row';
+      const manual=ind.fetch===null;
+      let inp;
+      if(ind.type==='select'){
+        inp=`<select id="inp-${ind.id}" onchange="manUp('${ind.id}',this.value)">
+          <option value="">—</option>
+          ${ind.options.map(o=>`<option value="${o}">${o}</option>`).join('')}
+        </select>`;
+      } else {
+        inp=`<input type="number" id="inp-${ind.id}" placeholder="—" step="0.01" oninput="manUp('${ind.id}',this.value)">`;
+      }
+      row.innerHTML=`
+        <div>
+          <div class="ind-name">${ind.name}${manual?' <span style="color:var(--muted);font-size:9px">✎</span>':''}</div>
+          <div class="ind-hint">${ind.hint}</div>
+        </div>
+        <div class="inp-wrap">${inp}</div>
+        <div class="mbar"><div class="mbar-fill" id="bar-${ind.id}" style="width:50%"></div></div>
+        <div class="sdot sd-neu" id="dot-${ind.id}">·</div>`;
+      blk.appendChild(row);
+    });
+    grid.appendChild(blk);
+  });
+}
 
-// Refresh news every 10 minutes
-setInterval(fetchNewsWithClaude, 10 * 60 * 1000);
+// ── FETCH ──
+function setPill(id, status, label){
+  const c=document.getElementById('pills');
+  let el=document.getElementById('pl-'+id);
+  if(!el){ el=document.createElement('div'); el.id='pl-'+id; c.appendChild(el); }
+  el.className='pill '+status;
+  el.innerHTML=`<div class="pdot"></div>${label}`;
+}
 
-// Rebuild charts on resize
-window.addEventListener('resize', () => {
-  buildYieldChart();
-});
+async function fetchAll(){
+  const btn=document.getElementById('refreshBtn');
+  btn.classList.add('loading');
+
+  setPill('fred','loading','FRED…');
+  setPill('yahoo','loading','Yahoo…');
+
+  const yahooIds=new Set(['ndx_200','ndx_rsi','macd_sig','vix','vix_ts']);
+  const allFetchable=CATS.flatMap(c=>c.inds).filter(i=>i.fetch!==null);
+
+  let fOk=0,fErr=0,yOk=0,yErr=0;
+
+  await Promise.all(allFetchable.map(async ind=>{
+    try {
+      const val=await ind.fetch();
+      const isY=yahooIds.has(ind.id);
+      if(val!==null){
+        S.values[ind.id]=val;
+        const el=document.getElementById('inp-'+ind.id);
+        if(el){
+          el.value=val;
+          if(ind.type!=='select') el.classList.add('auto');
+        }
+        isY?yOk++:fOk++;
+      } else { isY?yErr++:fErr++; }
+    } catch { yahooIds.has(ind.id)?yErr++:fErr++; }
+  }));
+
+  setPill('fred', fErr>fOk?'err':'ok', `FRED (${fOk})`);
+  setPill('yahoo', yErr>yOk?'err':'ok', `Yahoo (${yOk})`);
+  setPill('manual','manual','NAAIM · P/C · Breadth · Fed → manual');
+
+  document.getElementById('lastUpd').textContent=
+    'Updated '+new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+
+  updateUI();
+  btn.classList.remove('loading');
+}
+
+function manUp(id, val){
+  S.values[id]=val===''?null:val;
+  const el=document.getElementById('inp-'+id);
+  if(el) el.classList.remove('auto');
+  updateUI();
+}
+
+function setWeight(catId, val){
+  S.weights[catId]=parseInt(val);
+  document.getElementById('wv-'+catId).textContent=val+'%';
+  updateUI();
+}
+
+// ── SNAPSHOTS ──
+function saveSnap(){
+  const {comp}=computeAll();
+  const note=document.getElementById('notes').value.trim();
+  const date=new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'});
+  S.history.unshift({date,score:Math.round(comp),note:note||'—'});
+  renderHist();
+}
+
+function renderHist(){
+  const c=document.getElementById('histContainer');
+  if(!S.history.length){ c.innerHTML='<div class="empty">No snapshots yet.</div>'; return; }
+  c.innerHTML=S.history.slice(0,10).map(h=>{
+    const cc=col(h.score);
+    return `<div class="hist-row">
+      <span class="h-date">${h.date}</span>
+      <span class="h-score" style="color:${cc}">${h.score>=0?'+':''}${h.score}</span>
+      <span class="h-note" title="${h.note}">${h.note}</span>
+      <span class="h-sig" style="color:${cc}">${lbl(h.score)}</span>
+    </div>`;
+  }).join('');
+}
+
+// ── INIT ──
+buildCatSums();
+buildCats();
+updateUI();
+fetchAll();
 </script>
 </body>
 </html>
